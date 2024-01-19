@@ -1,25 +1,23 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
 
-class Event:
-    """Base event class"""
+
+class WalletEvent(BaseModel):
+    """Base wallet event class"""
+    user_id: int
+    wallet_id: int
 
 
 @dataclass(frozen=True)
-class TransactionCreated:
-    user_id: int
-    wallet_id: int
+class TransactionCreated(BaseModel):
     amount: float
 
 
 @dataclass(frozen=True)
-class FoundDeposited:
-    user_id: int
-    wallet_id: int
+class FoundDeposited(BaseModel):
     amount: float
 
 
 @dataclass
-class FoundWithDrawen:
-    user_id: int
-    wallet_id: int
+class FoundWithDrawn(BaseModel):
     amount: float
