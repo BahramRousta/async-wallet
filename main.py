@@ -44,12 +44,11 @@ def withdraw(wallet: Wallet, aggeregate: WalletAggeregate, amount: float) -> flo
     return wallet.balance
 
 
-
 if __name__ == '__main__':
 
     user = User(id=1)
 
-    wallet = Wallet(user_id=user.id)
+    wallet = Wallet(user_id=user.id, balance=10000)
     
     aggeregate = WalletAggeregate(wallet=wallet)
 
