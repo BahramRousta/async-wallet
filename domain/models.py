@@ -7,7 +7,7 @@ from domain.exceptions import NegativeBalanceError
 class Wallet(BaseModel):
     """Wallet entity"""
 
-    wallet_id: str = Field(default_factory=uuid.uuid4, alias='id')
+    wallet_id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias='id')
     user_id: int
     currency: str = "IRR"
     balance: float = 0.0
