@@ -17,6 +17,6 @@ class WalletQueryRepository:
     def __init__(self):
         self.db = mongo_instance
 
-    async def get_wallet(self, user_id: int) -> dict:
+    async def get_wallet(self, user_id: int) -> dict | None:
         wallet = await self.db.wallet_collection.find_one({'user_id': user_id})
-        return wallet
+        return wallet if wallet else None
