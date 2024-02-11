@@ -1,13 +1,19 @@
 from infrastructure.repository import WalletQueryRepository
 
 
-class WalletQueryService:
-
+class BaseWalletQuery:
     def __init__(self):
         self.repository = WalletQueryRepository()
 
-    async def execute(self, user_id: int) -> dict | None:
-        wallet = await self.repository.get_wallet(user_id=user_id)
+
+class WalletQueryService(BaseWalletQuery):
+
+    async def execute(self, user_id: int = None, wallet_id: str = None) -> dict | None:
+        if user_id:
+            wallet = await self.repository.get_wallet(user_id=user_id)
+        else:
+            wallet = await self.repository.get_wallet(wallet_id=wallet_id)
+
         if wallet is None:
             return None
         return {
@@ -15,3 +21,9 @@ class WalletQueryService:
             'user_id': wallet.get('user_id', ''),
             'balance': wallet.get('balance', ''),
         }
+
+
+class WalletBalanceQueryService(BaseWalletQuery):
+
+    async def execute(self, wallet_id: str) -> float:
+        return await self.repository.get_balance(wallet_id=wallet_id)
