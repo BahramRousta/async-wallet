@@ -1,10 +1,16 @@
 from fastapi import FastAPI, status, HTTPException
 from domain.events import WalletCreated, Deposited, Withdrawn
+from infrastructure.data_access import mongo_instance
 from presentation.schemas import GetWalletOutSchema, DepositIn, WithdrawIn
 from services.commands import CreateWalletCommand, DepositCommand, WithdrawCommand
 from services.queries import WalletQueryService, WalletBalanceQueryService
 
 app = FastAPI()
+
+
+@app.on_event('startup')
+async def startup():
+    await mongo_instance.client.start_session()
 
 
 @app.post('/create-wallet/{user_id}', status_code=status.HTTP_201_CREATED)
