@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Event(BaseModel):
@@ -16,9 +16,11 @@ class WalletDeleted(Event):
     pass
 
 
-class Deposited(Event):
+class Deposited(BaseModel):
+    wallet_id: str
     amount: float = 0.0
 
 
-class Withdrawn(Event):
+class Withdrawn(BaseModel):
+    wallet_id: str
     amount: float = 0.0
