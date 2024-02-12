@@ -1,3 +1,4 @@
+import datetime
 from pydantic import BaseModel, field_validator
 
 
@@ -36,5 +37,11 @@ class WithdrawIn(BaseModel):
 
 
 class BalanceOut(BaseModel):
-
     balance: float
+
+
+class TransactionOut(BaseModel):
+    event_type: str
+    created_at: datetime.datetime
+    transaction_id: str
+    amount: float

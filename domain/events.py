@@ -29,6 +29,12 @@ class TransactionEvent(Event):
     wallet_id: str
     amount: float = 0.0
 
+    @field_validator('amount')
+    def amount_validator(cls, value: float):
+        if value <= 0:
+            raise ValueError('amount must be positive')
+        return value
+
 
 class Deposited(TransactionEvent):
     pass

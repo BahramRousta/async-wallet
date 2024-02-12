@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List
 from domain.events import WalletCreated, Deposited, Withdrawn
 from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
@@ -67,8 +67,9 @@ class WalletCommandRepository:
             wallet = await self.wallet_collection.find_one(
                 {'wallet_id': event.wallet_id}, session=session
             )
+
             balance = wallet['balance']
-            if balance <= 0:
+            if event.amount > balance:
                 raise ValueError('Unable to withdraw')
 
             await self.wallet_collection.update_one(
@@ -107,3 +108,10 @@ class WalletQueryRepository:
         if not wallet:
             raise ValueError("Could not find wallet")
         return wallet['balance']
+
+    async def get_transactions(self, wallet_id: str) -> List[dict]:
+        if not self.wallet_collection or not self.event_collection:
+            await self._initialize_collections()
+        documents = self.event_collection.find({'wallet_id': wallet_id}, {'_id': 0, 'wallet_id': 0})
+        transactions = [document async for document in documents]
+        return transactions

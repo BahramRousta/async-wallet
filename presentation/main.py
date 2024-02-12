@@ -1,9 +1,10 @@
+from typing import List, Dict, Tuple, Any
 from fastapi import FastAPI, status, HTTPException
 from domain.events import WalletCreated, Deposited, Withdrawn
 from infrastructure.data_access import mongo_instance
-from presentation.schemas import GetWalletOutSchema, DepositIn, WithdrawIn
+from presentation.schemas import GetWalletOutSchema, DepositIn, WithdrawIn, TransactionOut
 from services.commands import CreateWalletCommand, DepositCommand, WithdrawCommand
-from services.queries import WalletQueryService, WalletBalanceQueryService
+from services.queries import WalletQueryService, WalletBalanceQueryService, WalletTransactionQueryService
 
 app = FastAPI()
 
@@ -102,6 +103,19 @@ async def wallet_balance(wallet_id: str) -> dict:
     try:
         balance = await WalletBalanceQueryService().execute(wallet_id=wallet_id)
         return {'balance': balance}
+    except Exception as e:
+        return {
+            'data': e.args,
+            'message': "Withdraw failed.",
+            'status': status.HTTP_400_BAD_REQUEST
+        }
+
+
+@app.get('/transactions/{wallet_id}/')
+async def wallet_transactions(wallet_id: str) -> List[TransactionOut] | dict:
+    try:
+        transactions: list = await WalletTransactionQueryService().execute(wallet_id)
+        return transactions
     except Exception as e:
         return {
             'data': e.args,

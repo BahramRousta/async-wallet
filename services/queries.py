@@ -1,3 +1,5 @@
+from typing import List
+
 from infrastructure.repository import WalletQueryRepository
 
 
@@ -27,3 +29,8 @@ class WalletBalanceQueryService(BaseWalletQuery):
 
     async def execute(self, wallet_id: str) -> float:
         return await self.repository.get_balance(wallet_id=wallet_id)
+
+
+class WalletTransactionQueryService(BaseWalletQuery):
+    async def execute(self, wallet_id: str) -> List[dict]:
+        return await self.repository.get_transactions(wallet_id=wallet_id)
