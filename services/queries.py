@@ -34,3 +34,8 @@ class WalletBalanceQueryService(BaseWalletQuery):
 class WalletTransactionQueryService(BaseWalletQuery):
     async def execute(self, wallet_id: str) -> List[dict]:
         return await self.repository.get_transactions(wallet_id=wallet_id)
+
+
+class WalletReplyEventsQueryService(BaseWalletQuery):
+    async def execute(self, wallet_id: str) -> dict:
+        return await self.repository.get_events(wallet_id=wallet_id)

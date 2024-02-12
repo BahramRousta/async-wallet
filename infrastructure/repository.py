@@ -115,3 +115,27 @@ class WalletQueryRepository:
         documents = self.event_collection.find({'wallet_id': wallet_id}, {'_id': 0, 'wallet_id': 0})
         transactions = [document async for document in documents]
         return transactions
+
+    async def get_events(self, wallet_id: str) -> dict:
+        if not self.wallet_collection or not self.event_collection:
+            await self._initialize_collections()
+
+        events = self.event_collection.find({'wallet_id': wallet_id}, {'_id': 0}).sort('created_at', 1)
+
+        wallet_balance = 0
+        transactions = []
+        async for event in events:
+            match event.get("event_type"):
+                case "WalletCreated":
+                    pass
+                case "Deposited":
+                    wallet_balance += event.get("amount", 0)
+                    transactions.append(event)
+                case "Withdrawn":
+                    wallet_balance -= event.get("amount", 0)
+                    transactions.append(event)
+
+        return {
+            'wallet_balance': wallet_balance,
+            'transactions': transactions
+        }
