@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Any
+from typing import List
 from fastapi import FastAPI, status, HTTPException
 from domain.events import WalletCreated, Deposited, Withdrawn
 from infrastructure.data_access import mongo_instance

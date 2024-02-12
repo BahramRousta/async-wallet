@@ -16,9 +16,7 @@ class WalletQueryService(BaseWalletQuery):
         else:
             wallet = await self.repository.get_wallet(wallet_id=wallet_id)
 
-        if wallet is None:
-            return None
-        return {
+        return None if not wallet else {
             'wallet_id': wallet.get('wallet_id', ''),
             'user_id': wallet.get('user_id', ''),
             'balance': wallet.get('balance', ''),

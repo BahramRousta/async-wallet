@@ -11,6 +11,57 @@ class WalletCommandRepository:
         self.wallet_collection = None
         self.event_collection = None
 
+    async def apply(self, event):
+        if not self.wallet_collection or not self.event_collection:
+            await self._initialize_collections()
+
+        match event.event_type:
+            case "WalletCreated":
+                async def transaction_logic(session):
+                    wallet = Wallet(user_id=event.user_id)
+                    await self.wallet_collection.insert_one(
+                        document=wallet.model_dump(),
+                        session=session
+                    )
+                    await self.event_collection.insert_one(
+                        document=event.model_dump(),
+                        session=session
+                    )
+
+            case "Deposited":
+                async def transaction_logic(session):
+                    await self.wallet_collection.find_one_and_update(
+                        {'wallet_id': event.wallet_id},
+                        {'$inc': {'balance': event.amount}},
+                        session=session
+                    )
+                    await self.event_collection.insert_one(
+                        document=event.model_dump(),
+                        session=session
+                    )
+
+            case "Withdrawn":
+                async def transaction_logic(session):
+                    wallet = await self.wallet_collection.find_one(
+                        {'wallet_id': event.wallet_id}, session=session
+                    )
+
+                    balance = wallet['balance']
+                    if event.amount > balance:
+                        raise ValueError('Unable to withdraw')
+
+                    await self.wallet_collection.update_one(
+                        {'wallet_id': event.wallet_id},
+                        {'$inc': {'balance': -event.amount}},
+                        session=session
+                    )
+                    await self.event_collection.insert_one(
+                        event.model_dump(),
+                        session=session
+                    )
+
+        await self._run_transaction(transaction_logic)
+
     async def _initialize_collections(self):
         self.wallet_collection = await self.db.wallet_collection
         self.event_collection = await self.db.event_collection
@@ -25,61 +76,13 @@ class WalletCommandRepository:
             raise e
 
     async def create_wallet(self, event: WalletCreated) -> None:
-        if not self.wallet_collection or not self.event_collection:
-            await self._initialize_collections()
-
-        async def transaction_logic(session):
-            wallet = Wallet(user_id=event.user_id)
-
-            await self.wallet_collection.insert_one(
-                document=wallet.model_dump(),
-                session=session
-            )
-            await self.event_collection.insert_one(
-                document=event.model_dump(),
-                session=session
-            )
-
-        await self._run_transaction(transaction_logic)
+        await self.apply(event)
 
     async def deposit(self, event: Deposited) -> None:
-        if not self.wallet_collection or not self.event_collection:
-            await self._initialize_collections()
-
-        async def transaction_logic(session):
-            await self.wallet_collection.find_one_and_update(
-                {'wallet_id': event.wallet_id},
-                {'$inc': {'balance': event.amount}},
-                session=session
-            )
-            await self.event_collection.insert_one(
-                document=event.model_dump(),
-                session=session
-            )
-
-        await self._run_transaction(transaction_logic)
+        await self.apply(event)
 
     async def withdraw(self, event: Withdrawn) -> None:
-        if not self.wallet_collection or not self.event_collection:
-            await self._initialize_collections()
-
-        async def transaction_logic(session):
-            wallet = await self.wallet_collection.find_one(
-                {'wallet_id': event.wallet_id}, session=session
-            )
-
-            balance = wallet['balance']
-            if event.amount > balance:
-                raise ValueError('Unable to withdraw')
-
-            await self.wallet_collection.update_one(
-                {'wallet_id': event.wallet_id},
-                {'$inc': {'balance': -event.amount}},
-                session=session
-            )
-            await self.event_collection.insert_one(event.model_dump(), session=session)
-
-        await self._run_transaction(transaction_logic)
+        await self.apply(event)
 
 
 class WalletQueryRepository:
@@ -104,7 +107,6 @@ class WalletQueryRepository:
 
     async def get_balance(self, wallet_id: str) -> float:
         wallet = await self.get_wallet(wallet_id=wallet_id)
-
         if not wallet:
             raise ValueError("Could not find wallet")
         return wallet['balance']
@@ -127,7 +129,7 @@ class WalletQueryRepository:
         async for event in events:
             match event.get("event_type"):
                 case "WalletCreated":
-                    pass
+                    transactions.append(event)
                 case "Deposited":
                     wallet_balance += event.get("amount", 0)
                     transactions.append(event)
