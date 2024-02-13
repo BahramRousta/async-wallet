@@ -1,25 +1,48 @@
 from typing import Callable, List
 from datetime import datetime
-from domain.events import WalletCreated, Deposited, Withdrawn
+from domain.events import WalletCreated, Deposited, Withdrawn, Event
 from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
 from pymongo.errors import PyMongoError, DuplicateKeyError
 
 
 class WalletCommandRepository:
+    """
+    Repository for handling wallet-related commands,
+    such as creating wallets, depositing, and withdrawing funds.
+    """
+
     def __init__(self):
         self.db = mongo_instance
         self.wallet_collection = None
         self.event_collection = None
 
-    async def apply(self, event):
+    async def apply(self, event: Event) -> None:
+        """
+        Apply the given event to update the wallet and event collections.
+
+        Args:
+            event: The event to apply.
+
+        Raises:
+            PyMongoError: If there is an error during MongoDB operations.
+            ValueError: If there is an invalid operation, e.g., withdrawing more than the available balance.
+            DuplicateKeyError: If there is a duplicate key error during MongoDB operations.
+        """
+
         if not self.wallet_collection or not self.event_collection:
             await self._initialize_collections()
 
-        match event.event_type:
-            case "WalletCreated":
+        async def transaction_logic(session):
+            """
+            Execute the transaction logic within a MongoDB session.
 
-                async def transaction_logic(session):
+            Args:
+                session: The MongoDB session to execute the transaction in.
+            """
+
+            match event.event_type:
+                case "WalletCreated":
                     await self.wallet_collection.insert_one(
                         document=event.model_dump(), session=session
                     )
@@ -27,9 +50,7 @@ class WalletCommandRepository:
                         document=event.model_dump(), session=session
                     )
 
-            case "Deposited":
-
-                async def transaction_logic(session):
+                case "Deposited":
                     await self.wallet_collection.find_one_and_update(
                         {"wallet_id": event.wallet_id},
                         {"$inc": {"balance": event.amount}},
@@ -39,9 +60,7 @@ class WalletCommandRepository:
                         document=event.model_dump(), session=session
                     )
 
-            case "Withdrawn":
-
-                async def transaction_logic(session):
+                case "Withdrawn":
                     wallet = await self.wallet_collection.find_one(
                         {"wallet_id": event.wallet_id}, session=session
                     )
@@ -56,16 +75,30 @@ class WalletCommandRepository:
                         session=session,
                     )
                     await self.event_collection.insert_one(
-                        event.model_dump(), session=session
+                        document=event.model_dump(), session=session
                     )
 
         await self._run_transaction(transaction_logic)
 
     async def _initialize_collections(self):
+        """
+        Initialize the wallet and event collections.
+        """
         self.wallet_collection = await self.db.wallet_collection
         self.event_collection = await self.db.event_collection
 
     async def _run_transaction(self, transaction_func: Callable):
+        """
+        Execute a MongoDB transaction with the provided transaction logic.
+
+        Args:
+            transaction_func: The transaction logic function to execute within the transaction.
+
+        Raises:
+            PyMongoError: If there is an error during MongoDB operations.
+            ValueError: If there is an invalid operation within the transaction logic.
+            DuplicateKeyError: If there is a duplicate key error during MongoDB operations.
+        """
 
         try:
             async with await self.db.client.start_session() as session:
