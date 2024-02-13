@@ -16,10 +16,10 @@ class DepositIn(BaseModel):
     wallet_id: str
     amount: float
 
-    @field_validator('amount')
+    @field_validator("amount")
     def amount_must_be_positive(cls, value):
         if value < 0:
-            raise ValueError('amount must be positive')
+            raise ValueError("amount must be positive")
 
         return value
 
@@ -28,10 +28,10 @@ class WithdrawIn(BaseModel):
     wallet_id: str
     amount: float
 
-    @field_validator('amount')
+    @field_validator("amount")
     def amount_must_be_positive(cls, value):
         if value < 0:
-            raise ValueError('amount must be positive')
+            raise ValueError("amount must be positive")
 
         return value
 

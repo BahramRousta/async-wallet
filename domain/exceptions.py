@@ -1,5 +1,3 @@
-
-
 class NegativeBalanceError(ValueError):
     pass
 
