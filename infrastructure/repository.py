@@ -118,18 +118,35 @@ class WalletCommandRepository:
 
 
 class WalletQueryRepository:
+    """
+    Repository for querying wallet-related information.
+    """
+
     def __init__(self):
         self.db = mongo_instance
         self.wallet_collection = None
         self.event_collection = None
 
     async def _initialize_collections(self):
+        """
+        Initialize the wallet and event collections.
+        """
         self.wallet_collection = await self.db.wallet_collection
         self.event_collection = await self.db.event_collection
 
     async def get_wallet(
         self, user_id: int = None, wallet_id: str = None
     ) -> dict | None:
+        """
+        Retrieve wallet information by user ID or wallet ID.
+
+        Args:
+           user_id (int, optional): The ID of the user associated with the wallet.
+           wallet_id (str, optional): The ID of the wallet.
+
+        Returns:
+           dict | None: The wallet information if found, otherwise None.
+        """
         if not self.wallet_collection or not self.event_collection:
             await self._initialize_collections()
 
@@ -140,12 +157,33 @@ class WalletQueryRepository:
         return wallet if wallet else None
 
     async def get_balance(self, wallet_id: str) -> float:
+        """
+        Retrieve the balance of a wallet.
+
+        Args:
+            wallet_id (str): The ID of the wallet.
+
+        Returns:
+            float: The balance of the wallet.
+
+        Raises:
+            ValueError: If the wallet cannot be found.
+        """
         wallet = await self.get_wallet(wallet_id=wallet_id)
         if not wallet:
             raise ValueError("Could not find wallet")
         return wallet["balance"]
 
     async def get_transactions(self, wallet_id: str) -> List[dict]:
+        """
+        Retrieve transactions for a wallet, excluding "WalletCreated" events.
+
+        Args:
+            wallet_id (str): The ID of the wallet.
+
+        Returns:
+            List[dict]: List of transactions for the wallet.
+        """
         if not self.wallet_collection or not self.event_collection:
             await self._initialize_collections()
         documents = self.event_collection.find(
@@ -162,6 +200,18 @@ class WalletQueryRepository:
         return transactions
 
     async def get_events(self, wallet_id: str, from_date: str, to_date: str) -> dict:
+        """
+        Retrieve events for a wallet within the specified date range.
+
+        Args:
+            wallet_id (str): The ID of the wallet.
+            from_date (str): Start date of the date range (format: YYYY-MM-DD).
+            to_date (str): End date of the date range (format: YYYY-MM-DD).
+
+        Returns:
+            dict: Dictionary containing wallet balance and transactions within the specified date range.
+        """
+
         if not self.wallet_collection or not self.event_collection:
             await self._initialize_collections()
 
