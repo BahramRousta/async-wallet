@@ -8,7 +8,6 @@ from presentation.schemas import (
     GetWalletOutSchema,
     DepositIn,
     WithdrawIn,
-    TransactionOut,
 )
 from services.commands import CreateWalletCommand, DepositCommand, WithdrawCommand
 from services.queries import (
@@ -28,6 +27,15 @@ async def startup():
 
 @app.post("/create-wallet/{user_id}", status_code=status.HTTP_201_CREATED)
 async def create_wallet(user_id: int) -> dict:
+    """
+    Create a new wallet for the given user ID.
+
+    Args:
+        user_id (int): The ID of the user for whom the wallet will be created.
+
+    Returns:
+        dict: Response containing the details of the created wallet.
+    """
 
     existing_wallet = await WalletQueryService().execute(user_id=user_id)
 
@@ -51,6 +59,16 @@ async def create_wallet(user_id: int) -> dict:
     status_code=status.HTTP_200_OK,
 )
 async def get_wallet(user_id: int) -> dict:
+    """
+    Retrieve the details of the wallet associated with the given user ID.
+
+    Args:
+        user_id (int): The ID of the user.
+
+    Returns:
+        dict: Details of the wallet.
+    """
+
     existing_wallet = await WalletQueryService().execute(user_id=user_id)
 
     if not existing_wallet:
@@ -61,6 +79,15 @@ async def get_wallet(user_id: int) -> dict:
 
 @app.post("/deposit/")
 async def deposit(deposit: DepositIn) -> dict:
+    """
+    Deposit funds into a wallet.
+
+    Args:
+        deposit (DepositIn): Input data containing wallet ID and amount to be deposited.
+
+    Returns:
+        dict: Response containing details of the deposit transaction.
+    """
 
     wallet_id = deposit.wallet_id
     existing_wallet = await WalletQueryService().execute(wallet_id=wallet_id)
@@ -73,13 +100,23 @@ async def deposit(deposit: DepositIn) -> dict:
 
     return {
         "data": event.model_dump(),
-        "message": "Wallet created successfully",
+        "message": "Deposit successful",
         "status": status.HTTP_200_OK,
     }
 
 
 @app.post("/withdraw/")
 async def withdraw(withdraw: WithdrawIn) -> dict:
+    """
+    Withdraw funds from a wallet.
+
+    Args:
+        withdraw (WithdrawIn): Input data containing wallet ID and amount to be withdrawn.
+
+    Returns:
+        dict: Response containing details of the withdrawal transaction.
+    """
+
     wallet_id = withdraw.wallet_id
     existing_wallet = await WalletQueryService().execute(wallet_id=wallet_id)
 
@@ -92,41 +129,76 @@ async def withdraw(withdraw: WithdrawIn) -> dict:
 
         return {
             "data": event.model_dump(),
-            "message": "Wallet created successfully",
+            "message": "Withdrawal successful",
             "status": status.HTTP_200_OK,
         }
     except Exception as e:
         return {
             "data": e.args,
-            "message": "Withdraw failed.",
+            "message": "Withdrawal failed.",
             "status": status.HTTP_400_BAD_REQUEST,
         }
 
 
 @app.get("/balance/{wallet_id}/")
 async def wallet_balance(wallet_id: str) -> dict:
+    """
+    Retrieve the balance of a wallet.
+
+    Args:
+        wallet_id (str): The ID of the wallet.
+
+    Returns:
+        dict: Response containing the balance of the wallet.
+    """
     try:
         balance = await WalletBalanceQueryService().execute(wallet_id=wallet_id)
         return {"balance": balance}
     except Exception as e:
         return {
             "data": e.args,
-            "message": "Withdraw failed.",
+            "message": "Failed to retrieve balance.",
             "status": status.HTTP_400_BAD_REQUEST,
         }
 
 
 @app.get("/transactions/{wallet_id}/")
 async def wallet_transactions(wallet_id: str) -> List[dict] | dict:
+    """
+    Retrieve the transactions of a wallet.
+
+    Args:
+        wallet_id (str): The ID of the wallet.
+
+    Returns:
+        Union[List[dict], dict]: List of transactions or error response.
+    """
+
     try:
         transactions: list = await WalletTransactionQueryService().execute(wallet_id)
         return transactions
     except Exception as e:
-        return {"data": e.args, "message": "", "status": status.HTTP_400_BAD_REQUEST}
+        return {
+            "data": e.args,
+            "message": "Failed to retrieve transactions.",
+            "status": status.HTTP_400_BAD_REQUEST,
+        }
 
 
 @app.get("/events/{wallet_id}/")
 async def reply_events(wallet_id: str, from_date: str, to_date: str) -> dict:
+    """
+    Retrieve events for a wallet within the specified date range.
+
+    Args:
+        wallet_id (str): The ID of the wallet.
+        from_date (str): Start date of the date range (format: YYYY-MM-DD).
+        to_date (str): End date of the date range (format: YYYY-MM-DD).
+
+    Returns:
+        dict: Response containing the events within the specified date range.
+    """
+
     try:
         from_date_dt = datetime.strptime(from_date, "%Y-%m-%d")
         to_date_dt = datetime.strptime(to_date, "%Y-%m-%d")
