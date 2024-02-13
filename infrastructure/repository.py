@@ -1,7 +1,5 @@
 from typing import Callable, List
-from datetime import datetime
 from domain.events import WalletCreated, Deposited, Withdrawn, Event
-from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
 from pymongo.errors import PyMongoError, DuplicateKeyError
 
