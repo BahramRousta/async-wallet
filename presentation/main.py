@@ -1,6 +1,8 @@
 from typing import List
+from datetime import datetime
 from fastapi import FastAPI, status, HTTPException
 from domain.events import WalletCreated, Deposited, Withdrawn
+from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
 from presentation.schemas import GetWalletOutSchema, DepositIn, WithdrawIn, TransactionOut
 from services.commands import CreateWalletCommand, DepositCommand, WithdrawCommand
@@ -26,7 +28,8 @@ async def create_wallet(user_id: int) -> dict:
             detail='Wallet already exists'
         )
 
-    event = WalletCreated(user_id=user_id)
+    wallet = Wallet(user_id=user_id)
+    event = WalletCreated(user_id=user_id, wallet_id=wallet.wallet_id)
     await CreateWalletCommand().execute(event)
 
     return {
@@ -113,27 +116,29 @@ async def wallet_balance(wallet_id: str) -> dict:
 
 
 @app.get('/transactions/{wallet_id}/')
-async def wallet_transactions(wallet_id: str) -> List[TransactionOut] | dict:
+async def wallet_transactions(wallet_id: str) -> List[dict] | dict:
     try:
         transactions: list = await WalletTransactionQueryService().execute(wallet_id)
         return transactions
     except Exception as e:
         return {
             'data': e.args,
-            'message': "Withdraw failed.",
+            'message': "",
             'status': status.HTTP_400_BAD_REQUEST
         }
 
 
 @app.get('/events/{wallet_id}/')
-async def reply_events(wallet_id: str):
+async def reply_events(wallet_id: str, from_date: str, to_date: str) -> dict:
     try:
-        transactions: dict = await WalletReplyEventsQueryService().execute(wallet_id)
-        print(transactions)
-        return transactions
+        from_date_dt = datetime.strptime(from_date, "%Y-%m-%d")
+        to_date_dt = datetime.strptime(to_date, "%Y-%m-%d")
+
+        wallet_events: dict = await WalletReplyEventsQueryService().execute(wallet_id, from_date_dt, to_date_dt)
+
+        return wallet_events
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format.")
     except Exception as e:
-        return {
-            'data': e.args,
-            'message': "Withdraw failed.",
-            'status': status.HTTP_400_BAD_REQUEST
-        }
+        raise HTTPException(status_code=500, detail=str(e))

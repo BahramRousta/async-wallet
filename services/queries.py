@@ -1,5 +1,5 @@
 from typing import List
-
+from datetime import datetime
 from infrastructure.repository import WalletQueryRepository
 
 
@@ -35,5 +35,5 @@ class WalletTransactionQueryService(BaseWalletQuery):
 
 
 class WalletReplyEventsQueryService(BaseWalletQuery):
-    async def execute(self, wallet_id: str) -> dict:
-        return await self.repository.get_events(wallet_id=wallet_id)
+    async def execute(self, wallet_id: str, from_date: str, to_date: str) -> dict:
+        return await self.repository.get_events(wallet_id=wallet_id, from_date=from_date, to_date=to_date)

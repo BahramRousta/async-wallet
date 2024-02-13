@@ -1,4 +1,5 @@
 from typing import Callable, List
+from datetime import datetime
 from domain.events import WalletCreated, Deposited, Withdrawn
 from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
@@ -18,16 +19,15 @@ class WalletCommandRepository:
         match event.event_type:
             case "WalletCreated":
                 async def transaction_logic(session):
-                    wallet = Wallet(user_id=event.user_id)
                     await self.wallet_collection.insert_one(
-                        document=wallet.model_dump(),
+                        document=event.model_dump(),
                         session=session
                     )
                     await self.event_collection.insert_one(
                         document=event.model_dump(),
                         session=session
                     )
-
+                    print('inserted transaction')
             case "Deposited":
                 async def transaction_logic(session):
                     await self.wallet_collection.find_one_and_update(
@@ -114,15 +114,30 @@ class WalletQueryRepository:
     async def get_transactions(self, wallet_id: str) -> List[dict]:
         if not self.wallet_collection or not self.event_collection:
             await self._initialize_collections()
-        documents = self.event_collection.find({'wallet_id': wallet_id}, {'_id': 0, 'wallet_id': 0})
+        documents = self.event_collection.find({
+            '$and': [
+                {'wallet_id': wallet_id},
+                {'event_type': {'$ne': 'WalletCreated'}}
+            ]
+        },
+            {'_id': 0, 'wallet_id': 0}
+        )
+
         transactions = [document async for document in documents]
         return transactions
 
-    async def get_events(self, wallet_id: str) -> dict:
+    async def get_events(self, wallet_id: str, from_date: str, to_date: str) -> dict:
         if not self.wallet_collection or not self.event_collection:
             await self._initialize_collections()
 
-        events = self.event_collection.find({'wallet_id': wallet_id}, {'_id': 0}).sort('created_at', 1)
+        events = self.event_collection.find(
+            {'$and': [
+                {'wallet_id': wallet_id},
+                {'created_at': {'$gte': from_date}},
+                {'created_at': {'$lte': to_date}}
+            ]
+            }, {'_id': 0}
+        ).sort('created_at', 1)
 
         wallet_balance = 0
         transactions = []
