@@ -1,5 +1,6 @@
 import datetime
 from pydantic import BaseModel, field_validator
+from typing import Any
 
 
 class CreateWalletInSchema(BaseModel):
@@ -45,3 +46,10 @@ class TransactionOut(BaseModel):
     created_at: datetime.datetime
     transaction_id: str
     amount: float
+
+
+class BaseResponse(BaseModel):
+    data: Any
+    message: str = ""
+    status: int
+    success: bool = False

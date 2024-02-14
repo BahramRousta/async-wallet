@@ -16,6 +16,7 @@ from services.queries import (
     WalletTransactionQueryService,
     WalletReplyEventsQueryService,
 )
+from presentation.schemas import BaseResponse
 
 app = FastAPI()
 
@@ -26,7 +27,7 @@ async def startup():
 
 
 @app.post("/create-wallet/{user_id}", status_code=status.HTTP_201_CREATED)
-async def create_wallet(user_id: int) -> dict:
+async def create_wallet(user_id: int) -> BaseResponse:
     """
     Create a new wallet for the given user ID.
 
@@ -46,11 +47,12 @@ async def create_wallet(user_id: int) -> dict:
     event = WalletCreated(user_id=user_id, wallet_id=wallet.wallet_id)
     await CreateWalletCommand().execute(event)
 
-    return {
-        "data": event.model_dump(),
-        "message": "Wallet created successfully",
-        "status": status.HTTP_201_CREATED,
-    }
+    return BaseResponse(
+        data=event.model_dump(),
+        message="Wallet created successfully",
+        status=status.HTTP_201_CREATED,
+        success=True,
+    )
 
 
 @app.get(
@@ -78,7 +80,7 @@ async def get_wallet(user_id: int) -> dict:
 
 
 @app.post("/deposit/")
-async def deposit(deposit: DepositIn) -> dict:
+async def deposit(deposit: DepositIn) -> BaseResponse:
     """
     Deposit funds into a wallet.
 
@@ -98,15 +100,16 @@ async def deposit(deposit: DepositIn) -> dict:
     event = Deposited(wallet_id=wallet_id, amount=deposit.amount)
     await DepositCommand().execute(event=event)
 
-    return {
-        "data": event.model_dump(),
-        "message": "Deposit successful",
-        "status": status.HTTP_200_OK,
-    }
+    return BaseResponse(
+        data=event.model_dump(),
+        message="Deposit successful",
+        status=status.HTTP_200_OK,
+        success=True,
+    )
 
 
 @app.post("/withdraw/")
-async def withdraw(withdraw: WithdrawIn) -> dict:
+async def withdraw(withdraw: WithdrawIn) -> BaseResponse:
     """
     Withdraw funds from a wallet.
 
@@ -127,21 +130,23 @@ async def withdraw(withdraw: WithdrawIn) -> dict:
     try:
         await WithdrawCommand().execute(event=event)
 
-        return {
-            "data": event.model_dump(),
-            "message": "Withdrawal successful",
-            "status": status.HTTP_200_OK,
-        }
+        return BaseResponse(
+            data=event.model_dump(),
+            message="Withdrawal successful",
+            status=status.HTTP_200_OK,
+            success=True,
+        )
     except Exception as e:
-        return {
-            "data": e.args,
-            "message": "Withdrawal failed.",
-            "status": status.HTTP_400_BAD_REQUEST,
-        }
+        return BaseResponse(
+            data=e.args,
+            message="Withdrawal failed",
+            status=status.HTTP_400_BAD_REQUEST,
+            success=False,
+        )
 
 
 @app.get("/balance/{wallet_id}/")
-async def wallet_balance(wallet_id: str) -> dict:
+async def wallet_balance(wallet_id: str) -> BaseResponse:
     """
     Retrieve the balance of a wallet.
 
@@ -153,13 +158,19 @@ async def wallet_balance(wallet_id: str) -> dict:
     """
     try:
         balance = await WalletBalanceQueryService().execute(wallet_id=wallet_id)
-        return {"balance": balance}
+        return BaseResponse(
+            data={"balance": balance},
+            message="",
+            status=status.HTTP_200_OK,
+            success=True,
+        )
     except Exception as e:
-        return {
-            "data": e.args,
-            "message": "Failed to retrieve balance.",
-            "status": status.HTTP_400_BAD_REQUEST,
-        }
+        return BaseResponse(
+            data=e.args,
+            message="Failed to retrieve balance.",
+            status=status.HTTP_400_BAD_REQUEST,
+            success=False,
+        )
 
 
 @app.get("/transactions/{wallet_id}/")
