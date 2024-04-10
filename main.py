@@ -50,7 +50,7 @@ async def create_wallet(user_id: int) -> BaseResponse:
                 "message": "Wallet created failed",
                 "success": False,
                 "user_id": user_id,
-                "timestamp": datetime.now(),
+                "timestamp": datetime.timestamp(datetime.now()),
             },
         )
         raise HTTPException(status_code=400, detail="Wallet already exists")
@@ -58,6 +58,7 @@ async def create_wallet(user_id: int) -> BaseResponse:
     wallet = Wallet(user_id=user_id)
     event = WalletCreated(user_id=user_id, wallet_id=wallet.wallet_id)
     await CreateWalletCommand().execute(event)
+
     es.index(
         index="wallet_logs",
         document={
@@ -67,6 +68,7 @@ async def create_wallet(user_id: int) -> BaseResponse:
             "timestamp": datetime.timestamp(datetime.now()),
         },
     )
+
     return BaseResponse(
         data=event.model_dump(),
         message="Wallet created successfully",

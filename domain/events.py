@@ -16,6 +16,7 @@ class Event(BaseModel):
 
 
 class WalletCreated(Event):
+    user_id: int
     balance: float = 0.0
 
 

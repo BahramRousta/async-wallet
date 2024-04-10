@@ -11,6 +11,11 @@ services:
       - "9300:9300"
     networks:
       - elk-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.17
@@ -21,6 +26,12 @@ services:
       - elk-network
     depends_on:
       - elasticsearch
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+
 
 networks:
   elk-network:
