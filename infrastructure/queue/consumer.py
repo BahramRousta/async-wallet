@@ -21,7 +21,7 @@ async def main() -> None:
     )
 
     async with connection:
-        # Creating channel
+
         channel = await connection.channel()
         await channel.set_qos(prefetch_count=10)
 
@@ -29,12 +29,9 @@ async def main() -> None:
 
         queue = await channel.declare_queue(queue_name)
 
-        await queue.consume(process_message)
+        await queue.consume(process_message, no_ack=True)
 
-        try:
-            # Wait until terminate
-            await asyncio.Future()
-        finally:
-            await connection.close()
+        print(" [*] Waiting for messages. To exit press CTRL+C")
+        await asyncio.Future()
 
 asyncio.run(main())

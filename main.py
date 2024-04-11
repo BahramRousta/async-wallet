@@ -20,7 +20,6 @@ from services.queries import (
 )
 from presentation.schemas import BaseResponse
 from infrastructure.els import client as es
-from utils.loger import save_log_to_elk
 
 app = FastAPI()
 
@@ -132,7 +131,6 @@ async def deposit(deposit: DepositIn) -> BaseResponse:
         "timestamp": datetime.timestamp(datetime.now()),
     }
     await publish_trnsx_logs(data=data)
-    # save_log_to_elk(data=data)
 
     return BaseResponse(
         data=event.model_dump(),
@@ -164,16 +162,16 @@ async def withdraw(withdraw: WithdrawIn) -> BaseResponse:
         event = Withdrawn(wallet_id=wallet_id, amount=withdraw.amount)
         await WithdrawCommand().execute(event=event)
 
-        es.index(
-            index="wallet_transactions",
-            document={
-                "message": "Withdrawn successful",
-                "success": True,
-                "wallet_id": wallet_id,
-                "amount": withdraw.amount,
-                "timestamp": datetime.timestamp(datetime.now()),
-            },
-        )
+        data = {
+            "index": "wallet_transactions",
+            "message": "Deposit successful",
+            "success": True,
+            "wallet_id": wallet_id,
+            "amount": withdraw.amount,
+            "timestamp": datetime.timestamp(datetime.now()),
+        }
+
+        await publish_trnsx_logs(data=data)
 
         return BaseResponse(
             data=event.model_dump(),
@@ -182,6 +180,16 @@ async def withdraw(withdraw: WithdrawIn) -> BaseResponse:
             success=True,
         )
     except Exception as e:
+        data = {
+            "index": "wallet_transactions",
+            "message": "Withdrawal failed",
+            "success": False,
+            "wallet_id": wallet_id,
+            "amount": withdraw.amount,
+            "timestamp": datetime.timestamp(datetime.now()),
+        }
+
+        await publish_trnsx_logs(data=data)
         return BaseResponse(
             data=e.args,
             message="Withdrawal failed",
