@@ -5,6 +5,7 @@ from fastapi import FastAPI, status, HTTPException
 from domain.events import WalletCreated, Deposited, Withdrawn
 from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
+from infrastructure.queue.publisher import publish_trnsx_logs
 from presentation.schemas import (
     GetWalletOutSchema,
     DepositIn,
@@ -19,7 +20,7 @@ from services.queries import (
 )
 from presentation.schemas import BaseResponse
 from infrastructure.els import client as es
-
+from utils.loger import save_log_to_elk
 
 app = FastAPI()
 
@@ -122,6 +123,17 @@ async def deposit(deposit: DepositIn) -> BaseResponse:
     event = Deposited(wallet_id=wallet_id, amount=deposit.amount)
     await DepositCommand().execute(event=event)
 
+    data = {
+        "index": "wallet_transactions",
+        "message": "Deposit successful",
+        "success": True,
+        "wallet_id": wallet_id,
+        "amount": deposit.amount,
+        "timestamp": datetime.timestamp(datetime.now()),
+    }
+    await publish_trnsx_logs(data=data)
+    # save_log_to_elk(data=data)
+
     return BaseResponse(
         data=event.model_dump(),
         message="Deposit successful",
@@ -148,9 +160,20 @@ async def withdraw(withdraw: WithdrawIn) -> BaseResponse:
     if not existing_wallet:
         raise HTTPException(status_code=404, detail="Wallet does not exist.")
 
-    event = Withdrawn(wallet_id=wallet_id, amount=withdraw.amount)
     try:
+        event = Withdrawn(wallet_id=wallet_id, amount=withdraw.amount)
         await WithdrawCommand().execute(event=event)
+
+        es.index(
+            index="wallet_transactions",
+            document={
+                "message": "Withdrawn successful",
+                "success": True,
+                "wallet_id": wallet_id,
+                "amount": withdraw.amount,
+                "timestamp": datetime.timestamp(datetime.now()),
+            },
+        )
 
         return BaseResponse(
             data=event.model_dump(),
