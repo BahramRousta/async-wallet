@@ -1,9 +1,9 @@
 import asyncio
 import json
-
 import aio_pika
 
-from utils.loger import save_log_to_elk
+from infrastructure.els import save_log_to_elk
+from infrastructure.queue.base import channel_pool
 
 
 async def process_message(message: aio_pika.abc.AbstractIncomingMessage) -> None:
@@ -15,23 +15,19 @@ async def process_message(message: aio_pika.abc.AbstractIncomingMessage) -> None
             print(f"Error decoding JSON: {e}")
 
 
-async def main() -> None:
-    connection = await aio_pika.connect_robust(
-        "amqp://guest:guest@127.0.0.1/",
-    )
+async def consume() -> None:
 
-    async with connection:
+    async with channel_pool.acquire() as channel:
+        await channel.set_qos(10)
 
-        channel = await connection.channel()
-        await channel.set_qos(prefetch_count=10)
+        queue = await channel.declare_queue(
+            "logs", durable=False, auto_delete=False,
+        )
 
-        queue_name = "trnsx_logs"
-
-        queue = await channel.declare_queue(queue_name)
-
-        await queue.consume(process_message, no_ack=True)
+        await queue.consume(process_message, no_ack=False)
 
         print(" [*] Waiting for messages. To exit press CTRL+C")
         await asyncio.Future()
 
-asyncio.run(main())
+
+asyncio.run(consume())

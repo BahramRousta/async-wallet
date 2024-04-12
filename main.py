@@ -1,11 +1,11 @@
-import time
+import json
 from typing import List
 from datetime import datetime
 from fastapi import FastAPI, status, HTTPException
 from domain.events import WalletCreated, Deposited, Withdrawn
 from domain.models import Wallet
 from infrastructure.data_access import mongo_instance
-from infrastructure.queue.publisher import publish_trnsx_logs
+from infrastructure.queue.publisher import publish_logs
 from presentation.schemas import (
     GetWalletOutSchema,
     DepositIn,
@@ -19,7 +19,6 @@ from services.queries import (
     WalletReplyEventsQueryService,
 )
 from presentation.schemas import BaseResponse
-from infrastructure.els import client as es
 
 app = FastAPI()
 
@@ -44,30 +43,32 @@ async def create_wallet(user_id: int) -> BaseResponse:
     existing_wallet = await WalletQueryService().execute(user_id=user_id)
 
     if existing_wallet:
-        es.index(
-            index="wallet_logs",
-            document={
+        data = {
+            "index": "wallet_logs",
+            "document": {
                 "message": "Wallet created failed",
                 "success": False,
                 "user_id": user_id,
-                "timestamp": datetime.timestamp(datetime.now()),
-            },
-        )
+                "timestamp": datetime.now().timestamp(),
+            }
+        }
+        await publish_logs(data=data)
         raise HTTPException(status_code=400, detail="Wallet already exists")
 
     wallet = Wallet(user_id=user_id)
     event = WalletCreated(user_id=user_id, wallet_id=wallet.wallet_id)
     await CreateWalletCommand().execute(event)
 
-    es.index(
-        index="wallet_logs",
-        document={
+    data = {
+        "index": "wallet_logs",
+        "document": {
             "message": "Wallet created successfully",
             "success": True,
             "user_id": user_id,
-            "timestamp": datetime.timestamp(datetime.now()),
-        },
-    )
+            "timestamp": datetime.now().timestamp(),
+        }
+    }
+    await publish_logs(data=data)
 
     return BaseResponse(
         data=event.model_dump(),
@@ -117,21 +118,34 @@ async def deposit(deposit: DepositIn) -> BaseResponse:
     existing_wallet = await WalletQueryService().execute(wallet_id=wallet_id)
 
     if not existing_wallet:
+        data = {
+            "index": "wallet_transactions",
+            "document": {
+                "message": "Deposit failed. Wallet does not exist.",
+                "success": False,
+                "wallet_id": wallet_id,
+                "amount": deposit.amount,
+                "timestamp": datetime.now().timestamp(),
+            }
+        }
+
+        await publish_logs(data=data)
         raise HTTPException(status_code=404, detail="Wallet does not exist.")
 
     event = Deposited(wallet_id=wallet_id, amount=deposit.amount)
     await DepositCommand().execute(event=event)
-
     data = {
         "index": "wallet_transactions",
-        "message": "Deposit successful",
-        "success": True,
-        "wallet_id": wallet_id,
-        "amount": deposit.amount,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "document": {
+            "message": "Deposit successful",
+            "success": True,
+            "wallet_id": wallet_id,
+            "amount": deposit.amount,
+            "timestamp": datetime.now().timestamp(),
+        }
     }
-    await publish_trnsx_logs(data=data)
 
+    await publish_logs(data=data)
     return BaseResponse(
         data=event.model_dump(),
         message="Deposit successful",
@@ -164,15 +178,16 @@ async def withdraw(withdraw: WithdrawIn) -> BaseResponse:
 
         data = {
             "index": "wallet_transactions",
-            "message": "Deposit successful",
-            "success": True,
-            "wallet_id": wallet_id,
-            "amount": withdraw.amount,
-            "timestamp": datetime.timestamp(datetime.now()),
+            "document": {
+                "message": "Withdrawal successful",
+                "success": True,
+                "wallet_id": wallet_id,
+                "amount": withdraw.amount,
+                "timestamp": datetime.now().timestamp(),
+            }
         }
 
-        await publish_trnsx_logs(data=data)
-
+        await publish_logs(data=data)
         return BaseResponse(
             data=event.model_dump(),
             message="Withdrawal successful",
@@ -182,14 +197,17 @@ async def withdraw(withdraw: WithdrawIn) -> BaseResponse:
     except Exception as e:
         data = {
             "index": "wallet_transactions",
-            "message": "Withdrawal failed",
-            "success": False,
-            "wallet_id": wallet_id,
-            "amount": withdraw.amount,
-            "timestamp": datetime.timestamp(datetime.now()),
+            "document": {
+                "message": "Withdrawal failed",
+                "success": False,
+                "wallet_id": wallet_id,
+                "amount": withdraw.amount,
+                "timestamp": datetime.now().timestamp(),
+            }
         }
 
-        await publish_trnsx_logs(data=data)
+        await publish_logs(data=data)
+
         return BaseResponse(
             data=e.args,
             message="Withdrawal failed",

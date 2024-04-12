@@ -1,5 +1,3 @@
-import asyncio
-
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 from domain.exceptions import MongoConnectionError
@@ -33,11 +31,6 @@ class MongoManager:
     @property
     async def wallet_collection(self):
         return self.database["WalletBalance"]
-
-    async def do_insert(self):
-        document = {"other": "other"}
-        result = await self.database.test_collection.insert_one(document)
-        print("result %s" % repr(result.inserted_id))
 
 
 mongo_instance = MongoManager()

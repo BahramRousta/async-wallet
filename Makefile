@@ -5,4 +5,7 @@ run:
 	uvicorn main:app --reload
 
 
-.PHONY: run
+consumers:
+	python3 infrastructure/queue/consumer.py
+
+.PHONY: run, consumers
